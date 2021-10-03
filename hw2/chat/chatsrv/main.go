@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 )
 
 type client chan<- string
@@ -43,11 +44,23 @@ func handleConn(conn net.Conn) {
 
 	log.Println(who + " has arrived")
 
+	ch <- "Enter your name:"
+
 	input := bufio.NewScanner(conn)
+	for input.Scan() {
+		name := input.Text()
+		log.Println(who + " set it name to " + name)
+		messages <- who + " set it name to " + name
+		who = name
+		ch <- "Your name set to " + who
+		break
+	}
+
 	for input.Scan() {
 		messages <- who + ": " + input.Text()
 	}
 	leaving <- ch
+	log.Println(who + " has left")
 	messages <- who + " has left"
 	err := conn.Close()
 	if err != nil {
@@ -74,10 +87,16 @@ func broadcaster() {
 			}
 		case cli := <-entering:
 			clients[cli] = true
+			for cli := range clients {
+				cli <- "Users: " + strconv.Itoa(len(clients))
+			}
 
 		case cli := <-leaving:
 			delete(clients, cli)
 			close(cli)
+			for cli := range clients {
+				cli <- "Users: " + strconv.Itoa(len(clients))
+			}
 		}
 	}
 }
