@@ -4,6 +4,11 @@ info:
   version: 1.0.0
 servers:
   - url: /
+tags:
+  - name: auth
+    description: Authentication
+  - name: item
+    description: Items
 paths:
   /user/login:
     post:
@@ -21,6 +26,8 @@ paths:
                   type: string
                   description: The password for login in clear text
         required: true
+      tags:
+        - auth
       responses:
         200:
           description: successful operation
@@ -41,6 +48,8 @@ paths:
     post:
       summary: Logs out current logged in user session
       operationId: logoutUser
+      tags:
+        - auth
       responses:
         200:
           description: successful logout
@@ -49,6 +58,8 @@ paths:
     get:
       summary: Lists Items with filters
       operationId: ListItems
+      tags:
+        - item
       parameters:
         - in: query
           name: price_min
@@ -74,6 +85,8 @@ paths:
     post:
       summary: Add a new item to the store
       operationId: CreateItem
+      tags:
+        - item
       requestBody:
         description: Item object that needs to be added to the store
         content:
@@ -91,6 +104,8 @@ paths:
     post:
       summary: uploads an image
       operationId: uploadFile
+      tags:
+        - item
       requestBody:
         content:
           multipart/form-data:
@@ -120,6 +135,8 @@ paths:
     get:
       summary: Find item by ID
       operationId: GetItem
+      tags:
+        - item
       parameters:
         - name: itemId
           in: path
@@ -141,6 +158,8 @@ paths:
     put:
       summary: Updates a item in the store with form data
       operationId: UpdateItem
+      tags:
+        - item
       parameters:
         - name: itemId
           in: path
@@ -170,6 +189,8 @@ paths:
     delete:
       summary: Deletes a item
       operationId: DeleteItem
+      tags:
+        - item
       parameters:
         - name: itemId
           in: path
