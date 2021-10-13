@@ -43,7 +43,7 @@ func TestGetHandler(t *testing.T) {
 
 func TestUploadHandler(t *testing.T) {
 	// открываем файл, который хотим отправить
-	file, _ := os.Open("testfile")
+	file, _ := os.Open("testfile.txt")
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
@@ -99,9 +99,77 @@ func TestUploadHandler(t *testing.T) {
 			status, http.StatusOK)
 	}
 
-	expected := `testfile`
+	expected := `testfile.txt`
 	if !strings.Contains(rr.Body.String(), expected) {
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			rr.Body.String(), expected)
+	}
+}
+
+func TestListUploadDir(t *testing.T) {
+	req, err := http.NewRequest("GET", "/upload", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := fmt.Fprintln(w, "ok!")
+		if err != nil {
+			return
+		}
+	}))
+	defer ts.Close()
+
+	uploadHandler := &UploadHandler{
+		UploadDir: "upload",
+		HostAddr:  ts.URL,
+	}
+
+	// опять же, вызываем ServeHTTP у тестируемого обработчика
+	uploadHandler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler rerurned wrong status code: got %v wont %v", status, http.StatusOK)
+	}
+
+	expected := "File name: testfile.txt; extension: .txt; size: 8\n"
+	if rr.Body.String() != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
+	}
+}
+
+func TestListUploadDirWithExtensionFilter(t *testing.T) {
+	req, err := http.NewRequest("GET", "/upload/?extension=.txt", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := fmt.Fprintln(w, "ok!")
+		if err != nil {
+			return
+		}
+	}))
+	defer ts.Close()
+
+	uploadHandler := &UploadHandler{
+		UploadDir: "upload",
+		HostAddr:  ts.URL,
+	}
+
+	// опять же, вызываем ServeHTTP у тестируемого обработчика
+	uploadHandler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler rerurned wrong status code: got %v wont %v", status, http.StatusOK)
+	}
+
+	expected := ""
+	if rr.Body.String() != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
 	}
 }
