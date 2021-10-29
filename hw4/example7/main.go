@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -29,43 +30,69 @@ type UploadHandler struct {
 }
 
 func (h *UploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		http.Error(w, "Unable to read file", http.StatusBadRequest)
-		return
-	}
-	defer func(file multipart.File) {
-		err := file.Close()
+	switch r.Method {
+	case http.MethodGet:
+		files, err := ioutil.ReadDir(h.UploadDir)
 		if err != nil {
-			http.Error(w, "Unable to close file", http.StatusInternalServerError)
+			log.Fatal(err)
+		}
+		filterExtension := r.FormValue("extension")
+		for _, file := range files {
+			fileName := file.Name()
+			fileExtension := filepath.Ext(file.Name())
+
+			if filterExtension != "" && fileExtension == filterExtension {
+				continue
+			}
+
+			if fileName[:1] == "." {
+				continue
+			}
+			_, err := fmt.Fprintf(w, "File name: %s; extension: %s; size: %d\n", fileName, fileExtension, file.Size())
+			if err != nil {
+				http.Error(w, "server error", http.StatusInternalServerError)
+				return
+			}
+		}
+	case http.MethodPost:
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, "Unable to read file", http.StatusBadRequest)
 			return
 		}
-	}(file)
+		defer func(file multipart.File) {
+			err := file.Close()
+			if err != nil {
+				http.Error(w, "Unable to close file", http.StatusInternalServerError)
+				return
+			}
+		}(file)
 
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		http.Error(w, "Unable to read file", http.StatusBadRequest)
-		return
-	}
-	separator := string(os.PathSeparator)
-	filePath := h.UploadDir + separator + header.Filename
+		data, err := ioutil.ReadAll(file)
+		if err != nil {
+			http.Error(w, "Unable to read file", http.StatusBadRequest)
+			return
+		}
+		separator := string(os.PathSeparator)
+		filePath := h.UploadDir + separator + header.Filename
 
-	err = ioutil.WriteFile(filePath, data, 0o600)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, "Unable to save file", http.StatusInternalServerError)
-		return
-	}
+		err = ioutil.WriteFile(filePath, data, 0o600)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "Unable to save file", http.StatusInternalServerError)
+			return
+		}
 
-	_, err = fmt.Fprintf(w, "File %s has been successfully uploaded\n", header.Filename)
-	if err != nil {
-		return
-	}
+		_, err = fmt.Fprintf(w, "File %s has been successfully uploaded\n", header.Filename)
+		if err != nil {
+			return
+		}
 
-	fileLink := h.HostAddr + "/" + header.Filename
-	_, err = fmt.Fprintln(w, fileLink)
-	if err != nil {
-		return
+		fileLink := h.HostAddr + "/" + header.Filename
+		_, err = fmt.Fprintln(w, fileLink)
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -118,7 +145,7 @@ func main() {
 		HostAddr:  "localhost:8080",
 		UploadDir: "upload",
 	}
-	http.Handle("/upload", uploadHandler)
+	http.Handle("/upload/", uploadHandler)
 	http.Handle("/", handler)
 
 	srv := &http.Server{
